@@ -18,7 +18,7 @@ BASE_DIR = Path(__file__).resolve().parent
 
 def main():
 
-    refresh_masterlist()
+    gather_companies()
 
 
 def check_if_jobs_page_empty(browser: Browser) -> bool:
@@ -117,6 +117,73 @@ def enhance_company_list(filepath: str = None, filedir: str = None, check_agains
         companies_df_out = pd.DataFrame(companies_list_out)
         companies_df_out.to_csv(
             f'{BASE_DIR}{ENHANCED_COMPANY_LIST_DIR}{new_file_name}.csv',
+            index=False,
+        )
+
+
+def gather_companies() -> None:
+    try:
+
+        companies_list = []
+        checked_urls = []
+        new_urls = [START_COMPANY_URL]
+
+        while len(new_urls) > 0 and len(companies_list) < MAX_SIMILAR_COMPANIES:
+            browser = Browser()
+            url = new_urls.pop()
+            print(f'Checking URL: {url}')
+            browser.open_page(url)
+            reject_login(browser)
+            reject_cookies(browser)
+            reject_popup(browser)
+
+            right_pane = bs(
+                browser.get_element(By.CLASS_NAME, 'right-rail').get_attribute('outerHTML'),
+                'html.parser',
+            )
+            side_cards = right_pane.find_all('section', {'class': 'aside-section-container'})
+
+            for side_card in side_cards:
+                title = side_card.find('h2', {'class': 'aside-section-container__title'}).text.strip()
+
+                if title in ['Similar pages', 'Affiliated pages']:
+                    similar_companies_list = side_card.find('ul', {'class': 'show-more-less__list'})
+                    similar_companies = similar_companies_list.findChildren('li', recursive=False)
+
+                    for company in similar_companies:
+                        company_url = company.find('a', {'class': 'base-card'})['href'].split('?')[0]
+                        company_name = company.find('h3', {'class': 'base-aside-card__title'}).text.strip()
+                        company_sector = company.find('p', {'class': 'base-aside-card__subtitle'})
+                        if company_sector is not None:
+                            company_sector = company_sector.text.strip()
+                        company_hq = company.find('p', {'class': 'base-aside-card__second-subtitle'})
+                        if company_hq is not None:
+                            company_hq = company_hq.text.strip()
+
+                        if company_url not in checked_urls and company_url not in new_urls:
+                            if company_sector not in SKIP_INDUSTRIES and company_hq not in SKIP_LOCATIONS:
+                                companies_list.append(
+                                    {
+                                        'COMPANY_NAME': company_name,
+                                        'SECTOR': company_sector,
+                                        'URL': company_url,
+                                        'HQ_LOCATION': company_hq,
+                                    }
+                                )
+                                new_urls.append(company_url)
+
+            browser.quit()
+
+            checked_urls.append(url)
+
+    except Exception as e:
+        print("This exception happened:")
+        print(e)
+
+    finally:
+        companies_df = pd.DataFrame(companies_list)
+        companies_df.to_csv(
+            f'{BASE_DIR}{SIMILAR_COMPANIES_LIST_DIR}{START_COMPANY_URL.split("/")[-1]}.csv',
             index=False,
         )
 
