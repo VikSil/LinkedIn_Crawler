@@ -18,7 +18,7 @@ BASE_DIR = Path(__file__).resolve().parent
 
 def main():
 
-    enhance_company_list(filedir=f'{BASE_DIR}/company_lists/recruiter_interests')
+    refresh_masterlist()
 
 
 def check_if_jobs_page_empty(browser: Browser) -> bool:
@@ -268,6 +268,40 @@ def parse_recruiter_interests(filepath: str = None) -> None:
 
         moved_file_name = Path(file).name
         os.rename(file, f'{BASE_DIR}{PROCESSED_RECRUITER_INTERESTS_DIR}{moved_file_name}')
+
+
+def refresh_masterlist(filedir: str = None) -> None:
+    if filedir is None:
+        filedir = f'{BASE_DIR}{ENHANCED_COMPANY_LIST_DIR}'
+    else:
+        filedir = f'{BASE_DIR}{filedir}'
+
+    if os.path.isfile(f'{BASE_DIR}{COMPANIES_MASTERLIST}'):
+        masterfile_df = pd.read_csv(f'{BASE_DIR}{COMPANIES_MASTERLIST}')
+    else:
+        masterfile_df = pd.DataFrame(
+            {
+                'COMPANY_ID': pd.Series(dtype='int'),
+                'COMPANY_NAME': pd.Series(dtype='str'),
+                'URL': pd.Series(dtype='str'),
+                'INDUSTRY': pd.Series(dtype='str'),
+                'LOCATION': pd.Series(dtype='str'),
+                'DESCRIPTION': pd.Series(dtype='str'),
+            }
+        )
+
+    masterfile_company_ids = masterfile_df['COMPANY_ID'].to_list()
+
+    company_files = [os.path.join(filedir, f) for f in os.listdir(filedir) if isfile(os.path.join(filedir, f))]
+
+    for company_file in company_files:
+        print(f'Consolidating records from {company_file}')
+        company_df = pd.read_csv(company_file)
+        filtered_company_df = company_df[~company_df['COMPANY_ID'].isin(masterfile_company_ids)]
+        masterfile_df = pd.concat([masterfile_df, filtered_company_df], ignore_index=True, sort=False)
+        masterfile_company_ids += filtered_company_df['COMPANY_ID'].to_list()
+
+    masterfile_df.to_csv(f'{BASE_DIR}{COMPANIES_MASTERLIST}', index=False)
 
 
 def reject_cookies(browser: Browser) -> None:
