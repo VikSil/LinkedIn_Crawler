@@ -249,6 +249,18 @@ def get_company_named_link(company_id: int, browser: Browser = None) -> str:
     return named_link
 
 
+def get_industries(filepath:str = None) -> Set[str]:
+    if filepath is None:
+        filepath = f'{BASE_DIR}{COMPANIES_MASTERLIST}'
+
+    try:
+        companies_df = pd.read_csv(filepath)
+        return set(companies_df['INDUSTRY'])
+    except:
+        print('Could not read the input file')
+        return set()
+
+
 def get_job_cards(browser: Browser) -> List[bs]:
     html = browser.get_element(By.TAG_NAME, 'html').get_attribute('innerHTML')
     soup = bs(html, 'html.parser')
