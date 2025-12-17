@@ -19,8 +19,11 @@ BASE_DIR = Path(__file__).resolve().parent
 
 def main():
 
-    gather_companies()
-
+def check_if_authwall(browser:Browser) -> bool:
+    page_title = browser.get_element(By.CLASS_NAME, 'authwall-join-form__title')
+    if page_title is not None:
+        return True
+    return False
 
 def check_if_jobs_page_empty(browser: Browser) -> bool:
     empty_text = browser.get_element(By.XPATH, f'//h1[contains(text(), "find a match for")]')
