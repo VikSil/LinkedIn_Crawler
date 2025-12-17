@@ -134,7 +134,7 @@ def enhance_company_list(filepath: str = None, filedir: str = None, check_agains
                 refresh_masterlist()
 
 
-def gather_companies() -> None:
+def gather_companies(check_against_masterlist: bool = True) -> None:
     try:
 
         companies_list = []
@@ -161,7 +161,7 @@ def gather_companies() -> None:
 
                 if title in ['Similar pages', 'Affiliated pages']:
                     similar_companies_list = side_card.find('ul', {'class': 'show-more-less__list'})
-                    similar_companies = similar_companies_list.findChildren('li', recursive=False)
+                    similar_companies = similar_companies_list.find_all('li', recursive=False)
 
                     for company in similar_companies:
                         company_url = company.find('a', {'class': 'base-card'})['href'].split('?')[0]
@@ -175,15 +175,16 @@ def gather_companies() -> None:
 
                         if company_url not in checked_urls and company_url not in new_urls:
                             if company_sector not in SKIP_INDUSTRIES and company_hq not in SKIP_LOCATIONS:
-                                companies_list.append(
-                                    {
-                                        'COMPANY_NAME': company_name,
-                                        'SECTOR': company_sector,
-                                        'URL': company_url,
-                                        'HQ_LOCATION': company_hq,
-                                    }
-                                )
-                                new_urls.append(company_url)
+                                if not check_against_masterlist or not is_in_masterlist(company_url=company_url):
+                                    companies_list.append(
+                                        {
+                                            'COMPANY_NAME': company_name,
+                                            'SECTOR': company_sector,
+                                            'URL': company_url,
+                                            'HQ_LOCATION': company_hq,
+                                        }
+                                    )
+                                    new_urls.append(company_url)
 
             browser.quit()
 
@@ -195,6 +196,7 @@ def gather_companies() -> None:
 
     finally:
         companies_df = pd.DataFrame(companies_list)
+        companies_df['COMPANY_ID'] = companies_df['COMPANY_ID'].astype('Int64')
         companies_df.to_csv(
             f'{BASE_DIR}{SIMILAR_COMPANIES_LIST_DIR}{START_COMPANY_URL.split("/")[-1]}.csv',
             index=False,
