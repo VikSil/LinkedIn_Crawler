@@ -381,6 +381,9 @@ def refresh_masterlist(filedir: str = None) -> None:
         masterfile_df = pd.concat([masterfile_df, filtered_company_df], ignore_index=True, sort=False)
         masterfile_company_ids += filtered_company_df['COMPANY_ID'].to_list()
 
+    masterfile_df = masterfile_df.sort_values(by= ['COMPANY_ID'])
+    masterfile_df = masterfile_df.drop_duplicates(subset = 'URL', keep = 'first') # if there are lines with and without COMPANY_ID
+    masterfile_df['COMPANY_ID'] = masterfile_df['COMPANY_ID'].astype('Int64')
     masterfile_df.to_csv(f'{BASE_DIR}{COMPANIES_MASTERLIST}', index=False)
 
 
