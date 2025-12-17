@@ -272,16 +272,7 @@ def is_in_masterlist(company_id: str = None, company_name: str = None, company_r
         elif isinstance(company_row, pd.Series):
             if 'COMPANY_ID' in company_row:
                 if company_row['COMPANY_ID'] in masterfile_df['COMPANY_ID'].to_list():
-                    return True
-
-            elif 'COMPANY_NAME' in company_row:
-                if company_row['COMPANY_NAME'] in masterfile_df['COMPANY_NAME'].to_list():
-                    return True
-
-            elif 'URL' in company_row:
-                if company_row['URL'] in masterfile_df['URL'].to_list():
-                    return True
-
+ 
     return False
 
 
