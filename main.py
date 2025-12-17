@@ -3,7 +3,7 @@ from bs4 import BeautifulSoup as bs
 from os.path import isfile
 from pathlib import Path
 from selenium.webdriver.common.by import By
-from typing import Dict, List
+from typing import Dict, List, Set
 
 import os
 import pandas as pd
