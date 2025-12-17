@@ -5,8 +5,9 @@ from pathlib import Path
 from selenium.webdriver.common.by import By
 from typing import Dict, List
 
-import pandas as pd
 import os
+import pandas as pd
+import re
 
 # Local imports
 from browser import Browser
@@ -307,34 +308,46 @@ def parse_recruiter_interests(filepath: str = None) -> None:
         company_files = [os.path.join(dir_path, f) for f in os.listdir(dir_path) if isfile(os.path.join(dir_path, f))]
 
     for file in company_files:
+        print(f'Processing file: {file}')
         with open(file, encoding='utf8') as f:
             soup = bs(f, 'html.parser')
 
-        recruiter = (
-            soup.find('div', {'class': 'artdeco-entity-lockup__title ember-view'}).text.strip().replace(' ', '_')
-        )
-        print(f'Processing interests of {recruiter}')
+        try:
+            recruiter = soup.find('div', {'class': 'artdeco-entity-lockup__title ember-view'}).text
+            recruiter = recruiter.strip()
+            recruiter = recruiter.replace(' ', '_')
+            recruiter = re.sub('[^A-Za-z0-9_]+', '', recruiter)
+            recruiter = re.sub('_+', '_', recruiter)
 
-        companies = soup.find_all('div', {'data-view-name': 'profile-component-entity'})
+            print(f'Processing interests of {recruiter}')
+            companies = soup.find_all('div', {'data-view-name': 'profile-component-entity'})
 
-        companies_data = []
-        for company in companies:
+            companies_data = []
+            for company in companies:
 
-            url = company.find('a', {'data-field': 'active_tab_companies_interests'})
-            if url is not None:
-                url = url['href']
-                company_id = url.split('/')[-2]
-                company_name = company.find('span', {'class': 'visually-hidden'}).text.strip()
-                companies_data.append({'COMPANY_ID': company_id, 'COMPANY_NAME': company_name})
+                url = company.find('a', {'data-field': 'active_tab_companies_interests'})
+                if url is not None:
+                    url = url['href']
+                    company_id = url.split('/')[-2]
+                    company_name = company.find('span', {'class': 'visually-hidden'}).text.strip()
+                    companies_data.append({'COMPANY_ID': company_id, 'COMPANY_NAME': company_name})
 
-        companies_df = pd.DataFrame(companies_data)
-        companies_df.to_csv(
-            f'{BASE_DIR}{RECRUITER_COMPANIES_LIST_DIR}{recruiter}.csv',
-            index=False,
-        )
+            companies_df = pd.DataFrame(companies_data)
+            companies_df['COMPANY_ID'] = companies_df['COMPANY_ID'].astype('Int64')
+            companies_df.to_csv(
+                f'{BASE_DIR}{RECRUITER_COMPANIES_LIST_DIR}{recruiter}.csv',
+                index=False,
+            )
 
-        moved_file_name = Path(file).name
-        os.rename(file, f'{BASE_DIR}{PROCESSED_RECRUITER_INTERESTS_DIR}{moved_file_name}')
+            moved_file_name = Path(file).name
+            os.rename(file, f'{BASE_DIR}{PROCESSED_RECRUITER_INTERESTS_DIR}{moved_file_name}')
+        
+        except Exception as e:
+            moved_file_name = Path(file).name
+            os.rename(file, f'{BASE_DIR}{FAILED_RECRUITER_INTERESTS_DIR}{moved_file_name}')
+            print('An Exception occured:')
+            print(e)
+            print('File saved in failed directory. Check HTML formatting.')
 
 
 def refresh_masterlist(filedir: str = None) -> None:

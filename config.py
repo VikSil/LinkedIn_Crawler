@@ -10,6 +10,8 @@ else:
 COMPANIES_MASTERLIST = f'{SLASH}company_lists{SLASH}company_masterlist.csv'
 DEFAULT_LOCATION = 'United Kingdom'
 ENHANCED_COMPANY_LIST_DIR = f'{SLASH}company_lists{SLASH}enhanced_lists{SLASH}'
+FAILED_RECRUITER_INTERESTS_DIR = f'{SLASH}recruiter_interests_html{SLASH}failed{SLASH}'
+
 
 MAX_SIMILAR_COMPANIES = 50
 
