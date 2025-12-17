@@ -222,6 +222,7 @@ def get_company_details(name: str = None, url: str = None) -> Dict[str, str]:
     if company_description is not None:
         company_description = company_description.text.strip()
 
+    browser.quit()
     company_dict = {
         'COMPANY_ID': company_id,
         'COMPANY_NAME': company_name,
@@ -246,7 +247,9 @@ def get_company_named_link(company_id: int, browser: Browser = None) -> str:
     except Exception as e:
         print(e)
         print('Something went wrong. Is the job list open?')
-    return named_link
+    finally:
+        browser.quit()
+        return named_link
 
 
 def get_industries(filepath:str = None) -> Set[str]:
