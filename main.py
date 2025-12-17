@@ -1,5 +1,6 @@
 # Global imports
 from bs4 import BeautifulSoup as bs
+from datetime import datetime, timedelta
 from os.path import isfile
 from pathlib import Path
 from selenium.webdriver.common.by import By
@@ -201,6 +202,118 @@ def gather_companies(check_against_masterlist: bool = True) -> None:
             f'{BASE_DIR}{SIMILAR_COMPANIES_LIST_DIR}{START_COMPANY_URL.split("/")[-1]}.csv',
             index=False,
         )
+
+
+def gather_jobs(filepath: str = None, target_industries: bool = False) -> None:
+    browser = Browser()
+
+    if filepath is None:
+        filepath = f'{BASE_DIR}{COMPANIES_MASTERLIST}'
+
+    try:
+        print(f'Will check for jobs in these companies: {filepath}')
+        companies_df = pd.read_csv(filepath)
+    except FileNotFoundError:
+        print("The input file does not exist!")
+    else:
+        try:
+            companies_df = companies_df.dropna(subset=['COMPANY_ID'])
+            companies_df = companies_df[~companies_df['COMPANY_ID'].isin(SKIP_COMPANIES_IDS)]
+            companies_df = companies_df[~companies_df['COMPANY_NAME'].isin(SKIP_COMPANIES_NAMES)]
+
+            if target_industries and len(TARGET_INDUSTRIES) > 0:
+                companies_df['INDUSTRY'] = companies_df['INDUSTRY'].str.strip()
+                companies_df['INDUSTRY'] = companies_df['INDUSTRY'].str.lower()
+                target_industries = [industry.lower() for industry in TARGET_INDUSTRIES]
+                companies_df = companies_df[companies_df['INDUSTRY'].isin(target_industries)]
+
+            companies_last_check_df = pd.read_csv(f'{BASE_DIR}{JOBS_LAST_CHECK_DATES}')
+            last_check_cutoff = datetime.today() - timedelta(days = COOLDOWN_DAYS)
+            companies_last_check_df['LAST_CHECK_DATE'] = pd.to_datetime(companies_last_check_df['LAST_CHECK_DATE'])
+            skip_companies_df = companies_last_check_df[companies_last_check_df['LAST_CHECK_DATE']> last_check_cutoff]
+            skip_companies_list = skip_companies_df['COMPANY_ID'].to_list()
+            companies_df = companies_df[~companies_df['COMPANY_ID'].isin(skip_companies_list)]
+
+            skip_jobs_df = pd.read_csv(f'{BASE_DIR}{SKIP_JOBS_LIST}')
+            skip_jobs_urls = skip_jobs_df['JOB_URL'].to_list()
+
+            job_list = []
+            checked_company_list = []
+
+            for index, row in companies_df.iterrows():
+                print(f'Checking jobs at {row['COMPANY_NAME']}')
+                company_id = int(row['COMPANY_ID'])
+
+                is_authwall = True
+                while is_authwall:
+                    open_jobs_page(browser, company_id) # open page for all UK jobs to see if any exist
+                    is_authwall = check_if_authwall(browser)
+
+                if not check_if_jobs_page_empty(browser): # if some UK jobs exist, check for keywords
+                    for keyword in JOB_KEYWORDS:
+
+                        is_authwall = True
+                        while is_authwall:
+                            open_jobs_page(browser, company_id, keyword = keyword)
+                            is_authwall = check_if_authwall(browser)
+
+                        if not check_if_jobs_page_empty(browser):
+                            job_li_list = get_job_cards(browser)
+
+                            print(f'{keyword} got {len(job_li_list)} potential jobs')
+
+                            for job in job_li_list:
+                                job_url = job.find('a', {'class': 'base-card__full-link'})['href'].split('?')[0]
+                                job_title = job.find('h3', {'class': 'base-search-card__title'}).text.strip()
+                                job_location = job.find('span', {'class': 'job-search-card__location'}).text.strip()
+
+                                if not any(keyword.lower() in job_title.lower() for keyword in SKIP_KEYWORDS):
+                                    if job_url not in skip_jobs_urls:                            
+                                        print(f'Logging job: {job_title}')
+                                        job_list.append(
+                                            {
+                                                'JOB_TITLE': job_title,
+                                                'COMPANY_NAME': row['COMPANY_NAME'],
+                                                'LOCATION': job_location,
+                                                'JOB_URL': job_url,
+                                                'COMPANY_URL': row['URL'],
+                                                'COMPANY_ID': company_id,
+                                            }
+                                        )
+                                else:
+                                    print(f'Skipping job: {job_title} | {job_url}')
+
+                        else:
+                            print(f'{keyword} got an empty page')
+                            browser.sleep(2)
+                else:
+                    print(f'There are no UK jobs at {row['COMPANY_NAME']}')
+
+                checked_company_list.append(company_id)
+        except Exception as e:
+            print(f'An exception happened: {e}')
+            input()
+        finally:
+            if len(job_list) > 0:
+                job_list_df = pd.DataFrame(job_list)
+                job_list_df.drop_duplicates(subset=None, keep="first", inplace=True)
+                original_file_name = Path(filepath).stem
+                job_list_df.to_csv(
+                    f'{BASE_DIR}{JOB_LIST_DIR}{original_file_name}_processed.csv',
+                    index=False,
+                )
+                skip_jobs_df = pd.concat([skip_jobs_df, job_list_df], ignore_index=True, sort=False)
+                skip_jobs_df.to_csv(f'{BASE_DIR}{SKIP_JOBS_LIST}', index= False)
+
+            if len(checked_company_list) > 0:
+                checked_company_df = pd.DataFrame(checked_company_list, columns = ['COMPANY_ID'])
+                checked_company_df['LAST_CHECK_DATE'] =datetime.today()
+                companies_last_check_df = pd.concat(
+                    [companies_last_check_df, checked_company_df], ignore_index=True, sort=False
+                )
+                companies_last_check_df['COMPANY_ID'] = companies_last_check_df['COMPANY_ID'].astype('Int64')
+                companies_last_check_df.to_csv(f'{BASE_DIR}{JOBS_LAST_CHECK_DATES}', index = False
+                )
 
 
 def get_company_details(name: str = None, url: str = None) -> Dict[str, str]:
