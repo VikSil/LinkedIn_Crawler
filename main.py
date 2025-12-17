@@ -291,11 +291,15 @@ def is_in_masterlist(company_id: str = None, company_name: str = None, company_r
     return False
 
 
-def open_jobs_page(browser: Browser, company_id: int, location: str = DEFAULT_LOCATION) -> None:
+def open_jobs_page(browser: Browser, company_id: int, location: str = DEFAULT_LOCATION, keyword:str = None) -> None:
     if location is None:
         location = 'worldwide'
 
-    url = f'https://www.linkedin.com/jobs/search?f_C={company_id}&location={location.replace(' ', '%20')}&position=1&pageNum=0'
+    url = f'https://www.linkedin.com/jobs/search?f_C={company_id}&location={location.replace(' ', '%20')}'
+
+    if keyword is not None:
+        url += f'&keywords={keyword}'
+
     browser.open_page(url)
     browser.sleep(2)
 
