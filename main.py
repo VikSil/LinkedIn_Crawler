@@ -254,7 +254,7 @@ def get_job_cards(browser: Browser) -> List[bs]:
     soup = bs(html, 'html.parser')
 
     jobs_ul = soup.find('ul', {'class': 'jobs-search__results-list'})
-    job_li_list = jobs_ul.findChildren('li', recursive=False)
+    job_li_list = jobs_ul.find_all('li', recursive=False)
 
     return job_li_list
 
