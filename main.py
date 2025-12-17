@@ -29,7 +29,7 @@ def check_if_jobs_page_empty(browser: Browser) -> bool:
     return False
 
 
-def enhance_company_list(filepath: str = None, filedir: str = None, check_against_masterlist: bool = True) -> None:
+def enhance_company_list(filepath: str = None, filedir: str = None, check_against_masterlist: bool = True, add_to_masterlist: bool = False) -> None:
 
     if filepath is None and filedir is None:
         print('Please provide either file or directory for processing')
@@ -44,13 +44,15 @@ def enhance_company_list(filepath: str = None, filedir: str = None, check_agains
 
     if os.path.isfile(f'{BASE_DIR}{COMPANIES_MASTERLIST}'):
         masterfile_df = pd.read_csv(f'{BASE_DIR}{COMPANIES_MASTERLIST}')
-        skip_company_ids = masterfile_df['COMPANY_ID'].to_list()
 
-    try:
-        for file in company_files:
+    for file in company_files:
+        try:
             print(f'Processing file {file}')
             companies_df_in = pd.read_csv(file)
+            if 'SECTOR' in companies_df_in.columns:
+                companies_df_in = companies_df_in[~companies_df_in['SECTOR'].isin(SKIP_INDUSTRIES)]
             companies_list_out = []
+            skipped_counter = 0
 
             for index, row in companies_df_in.iterrows():
                 if 'COMPANY_NAME' in row:
@@ -58,6 +60,7 @@ def enhance_company_list(filepath: str = None, filedir: str = None, check_agains
 
                 if check_against_masterlist and is_in_masterlist(company_row=row):
                     print(f'Company already in masterlist. Will skip.')
+                    skipped_counter +=1
                     continue
 
                 if 'URL' not in row:
@@ -109,17 +112,23 @@ def enhance_company_list(filepath: str = None, filedir: str = None, check_agains
                 }
                 companies_list_out.append(company_dict)
 
-    except Exception as e:
-        print('Something went wrong')
-        print(e)
+        except Exception as e:
+            print('Something went wrong')
+            print(e)
 
-    finally:
-        new_file_name = Path(file).stem
-        companies_df_out = pd.DataFrame(companies_list_out)
-        companies_df_out.to_csv(
-            f'{BASE_DIR}{ENHANCED_COMPANY_LIST_DIR}{new_file_name}.csv',
-            index=False,
-        )
+        finally:
+            if len(companies_list_out)>0 :
+                new_file_name = Path(file).stem
+                companies_df_out = pd.DataFrame(companies_list_out)
+                companies_df_out['COMPANY_ID'] = companies_df_out['COMPANY_ID'].astype('Int64')
+                companies_df_out.to_csv(
+                    f'{BASE_DIR}{ENHANCED_COMPANY_LIST_DIR}{new_file_name}.csv',
+                    index=False,
+                )
+                print(f'File {file} processed. {skipped_counter} record skipped.')
+
+            if add_to_masterlist:
+                refresh_masterlist()
 
 
 def gather_companies() -> None:
