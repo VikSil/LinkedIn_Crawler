@@ -2,6 +2,8 @@
 
 This repo contains a set of scripts for scraping company and job advertisement data from LinkedIn website.
 
+This project was born out of frustration. After manually looking for jobs and getting flagged by LinkedIn's monitoring tools as apparently being *too effective*, I was issued a warning to not use bots. Which I was not doing. Up until that point. But LinkedIn decided that I was, and did not even provide a "Contact Us" option to tell them that I was not using bots. So, I made a bot.
+
 ## How to use the scripts
 
 In order to gather job advertisements you will first need to gather companies whose ads you want to check. There are two pathways to gathering companies.
